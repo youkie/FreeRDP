@@ -1,0 +1,55 @@
+name: Build-Android-apk
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup‑JDK‑17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: 初始化安卓SDK，同意全部许可 + 安装NDK29
+        run: |
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          # 适配新版cmdline‑tools文件夹名称
+          CMD_TOOL=$(ls $ANDROID_SDK_ROOT/cmdline-tools)
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/$CMD_TOOL/bin/sdkmanager --licenses
+          $ANDROID_SDK_ROOT/cmdline-tools/$CMD_TOOL/bin/sdkmanager "ndk;29.0.13113456"
+
+      - name: 编译android版本apk
+        env:
+         ANDROID_ABI: arm64-v8a
+        run: |
+          cd client/Android/Studio
+          
+          chmod +x gradlew
+          export ANDROID_ABI=arm64-v8a
+          export NDK_ABI_FILTERS=arm64-v8a
+          ./gradlew clean
+          ./gradlew build
+          
+          ls -R /home/runner/work/FreeRDP/FreeRDP/client/Android/Studio/
+
+      # 新增：上传CMake编译自动生成的头文件（这里就包含winpr/config.h）
+      - name: 上传编译的所有文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: freerdp-generated-headers
+          path: client/Android/Studio/build/*
+          
+      - name: 上传编译出来的so库
+        uses: actions/upload-artifact@v4
+        with:
+          name: freerdp-arm64‑so
+          # path: client/Android/Studio/freeRDPCore/build/intermediates/cmake/release/obj/arm64-v8a/libfreeRDPCore.so
+          path: client/Android/Studio/freeRDPCore/build/**/*.so
+      - name: 上传编译出来的apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: freerdp-arm64‑apk
+          # path: client/Android/Studio/freeRDPCore/build/intermediates/cmake/release/obj/arm64-v8a/libfreeRDPCore.so
+          path: client/Android/Studio/**/*.apk
