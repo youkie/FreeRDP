@@ -10,17 +10,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: googlevr/cardboard
-          ref: tags/v1.34.0
+          ref: v1.34.0
           path: cardboard_src
+          fetch-depth: 0  # 关键！关闭浅拷贝，获取全部tag信息
 
       - name: Setup JDK17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      # 直接删除所有 setup-android action，不需要！
-      # GitHub Ubuntu runner 已经预装Android SDK，gradle会自动补全版本
 
       - name: chmod gradlew
         run: chmod +x gradlew
