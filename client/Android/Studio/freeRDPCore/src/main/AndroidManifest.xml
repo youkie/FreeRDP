@@ -88,6 +88,12 @@
                     android:scheme="freerdp" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".presentation.VrRdpActivity"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|keyboardHidden|screenSize"/>
+
         <activity
             android:exported="true"
             android:name=".presentation.AboutActivity"

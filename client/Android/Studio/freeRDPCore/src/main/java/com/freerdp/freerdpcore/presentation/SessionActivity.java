@@ -57,10 +57,20 @@ import com.freerdp.freerdpcore.domain.BookmarkBase;
 import com.freerdp.freerdpcore.domain.ConnectionReference;
 import com.freerdp.freerdpcore.services.LibFreeRDP;
 import com.freerdp.freerdpcore.utils.ClipboardManagerProxy;
+import com.freerdp.freerdpcore.presentation.VrRdpActivity;
 
 public class SessionActivity extends AppCompatActivity
     implements LibFreeRDP.UIEventListener, ClipboardManagerProxy.OnClipboardChangedListener
 {
+	public interface VrFrameListener {
+		void onNewFrame(@NonNull Bitmap frameBitmap);
+	}
+
+	private VrFrameListener mVrFrameListener;
+
+	public void setVrFrameListener(VrFrameListener listener) {
+		mVrFrameListener = listener;
+	}
 	public static final String PARAM_CONNECTION_REFERENCE = "conRef";
 	public static final String PARAM_INSTANCE = "instance";
 	private static final String TAG = "FreeRDP.SessionActivity";
@@ -773,6 +783,13 @@ public class SessionActivity extends AppCompatActivity
 		 */
 
 		uiHandler.sendEmptyMessage(REFRESH_SESSIONVIEW);
+
+		// VR 帧回调，拷贝一份位图防止底层覆写
+		if(mVrFrameListener != null && bitmap != null && !bitmap.isRecycled())
+		{
+			Bitmap frameCopy = Bitmap.createBitmap(bitmap);
+			mVrFrameListener.onNewFrame(frameCopy);
+		}
 	}
 
 	@Override public void OnGraphicsResize(int width, int height, int bpp)
@@ -995,13 +1012,27 @@ public class SessionActivity extends AppCompatActivity
 		if (bundle != null && bundle.containsKey(PARAM_CONNECTION_REFERENCE))
 		{
 			if (ConnectionReference.isHostnameReference(
-			        bundle.getString(PARAM_CONNECTION_REFERENCE)))
+					bundle.getString(PARAM_CONNECTION_REFERENCE)))
 			{
 				assert session.getBookmark().getType() == BookmarkBase.TYPE_MANUAL;
 				sessionViewModel.recordQuickConnectHistory(session.getBookmark().getHostname());
 			}
 		}
+
+		// ========= VR：打开VR Activity =========
+		Intent vrIntent = new Intent(SessionActivity.this, VrRdpActivity.class);
+		startActivity(vrIntent);
+
+		// 延时等待VrRdpActivity完成onCreate，注册帧监听器
+		new Handler(getMainLooper()).postDelayed(()->{
+			if(VrRdpActivity.sInstance != null){
+				// 注意：setVrFrameListener 是 SessionActivity自己的方法！
+				setVrFrameListener((SessionActivity.VrFrameListener) VrRdpActivity.sInstance);
+			}
+		},300);
 	}
+
+
 
 	private void onSessionFailed()
 	{
