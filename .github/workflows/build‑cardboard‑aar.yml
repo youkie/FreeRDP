@@ -19,9 +19,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 替换为官方维护的 setup‑android
-      - name: Setup Android SDK
-        uses: actions/setup-android@v3
+      # 直接删除所有 setup-android action，不需要！
+      # GitHub Ubuntu runner 已经预装Android SDK，gradle会自动补全版本
 
       - name: chmod gradlew
         run: chmod +x gradlew
