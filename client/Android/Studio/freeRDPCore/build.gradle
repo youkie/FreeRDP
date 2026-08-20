@@ -98,9 +98,15 @@ tasks.register("copyNativeDeps") {
     }
 }
 
-// 让 assembleDebug / assembleRelease 之前执行拷贝
-tasks.assembleDebug.dependsOn("copyNativeDeps")
-tasks.assembleRelease.dependsOn("copyNativeDeps")
+// assembleDebug 前执行 copyNativeDeps
+tasks.named("assembleDebug") {
+    dependsOn("copyNativeDeps")
+}
+
+// assembleRelease 前执行 copyNativeDeps
+tasks.named("assembleRelease") {
+    dependsOn("copyNativeDeps")
+}
 
 dependencies {
     implementation files('libs/sdk-release.aar')
