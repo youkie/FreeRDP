@@ -112,13 +112,16 @@ tasks.register("copyNativeDeps") { Task task ->
     }
 }
 
+tasks.matching { it.name == "assembleRelease" }.configureEach { t ->
+    t.dependsOn("copyNativeDeps")
+    myTask.dependsOn(t)
+}
 
-tasks.named("assembleRelease") {
-    dependsOn("copyNativeDeps")
+tasks.matching { it.name == "assembleQa" }.configureEach { t ->
+    t.dependsOn("copyNativeDeps")
+    myTask.dependsOn(t)
 }
-tasks.named("assembleQa") {
-    dependsOn("copyNativeDeps")
-}
+
 
 dependencies {
     implementation files('libs/sdk-release.aar')
