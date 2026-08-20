@@ -19,11 +19,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # 替换为官方维护的 setup‑android
       - name: Setup Android SDK
-        uses: android-actions/setup-android-sdk@v2
-        with:
-          api-level: 33
-          build-tools-version: "33.0.2"
+        uses: actions/setup-android@v3
 
       - name: chmod gradlew
         run: chmod +x gradlew
