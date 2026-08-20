@@ -273,6 +273,10 @@ public class SessionView extends View
 			surface.draw(canvas);
 		}
 		canvas.restore();
+		// 在onDraw末尾，当前已经绘制完成桌面bitmap
+		if(mBitmap != null) {
+			FrameBus.INSTANCE.setLatestFrame(mBitmap);
+		}
 	}
 
 	// perform mapping on the touch event's coordinates according to the current scaling

@@ -90,8 +90,10 @@
         </activity>
 
         <activity
+            android:exported="false"
             android:name=".presentation.VrRdpActivity"
             android:screenOrientation="landscape"
+            android:hardwareAccelerated="true"
             android:configChanges="orientation|keyboardHidden|screenSize"/>
 
         <activity
