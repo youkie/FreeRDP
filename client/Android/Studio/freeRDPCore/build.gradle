@@ -81,10 +81,14 @@ android {
 tasks.register("copyNativeDeps") { Task task ->
     doLast {
         String buildTypeDir
-        def upstreamTask = task.taskDependencies.getDependencies(task).firstOrNull()?.name ?: ""
-        if (upstreamTask.contains("assembleRelease")) {
+        // ==========【修改点：移除Kotlin扩展函数 firstOrNull()，替换Groovy原生写法】==========
+        def depSet = task.taskDependencies.getDependencies(task)
+        def upstreamTask = depSet.isEmpty() ? null : depSet.iterator().next()
+        def upstreamTaskName = upstreamTask?.name ?: ""
+
+        if (upstreamTaskName.contains("assembleRelease")) {
             buildTypeDir = "release"
-        } else if (upstreamTask.contains("assembleQa")) {
+        } else if (upstreamTaskName.contains("assembleQa")) {
             buildTypeDir = "qa"
         } else {
             buildTypeDir = "debug"
