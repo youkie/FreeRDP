@@ -3,41 +3,86 @@ package com.freerdp.freerdpcore.presentation;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.opengl.GLSurfaceView;
+import android.opengl.GLU;
 import android.os.Bundle;
 import android.util.Log;
 
-import com.freerdp.freerdpcore.application.FrameBus;
-import com.google.cardboard.sdk.CardboardViewApi;
-import com.google.cardboard.sdk.nativetypes.EyeTextureDescription;
 
-import javax.microedition.khronos.EGLConfigChooser;
+import com.freerdp.freerdpcore.R;
+import com.freerdp.freerdpcore.application.FrameBus;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class VrRdpActivity extends Activity {
     private static final String TAG = "VrRdpActivity";
-
     private GLSurfaceView mGlSurfaceView;
-    private CardboardViewApi mCardboardApi;
 
-    private static class VrRenderer implements GLSurfaceView.Renderer {
-        private final CardboardViewApi mApi;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_vr_rdp);
+        mGlSurfaceView = findViewById(R.id.gl_surface);
+        mGlSurfaceView.setEGLContextClientVersion(2);
+        mGlSurfaceView.setRenderer(new SimpleStereoRenderer());
+        mGlSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mGlSurfaceView.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mGlSurfaceView.onPause();
+    }
+
+    private static class SimpleStereoRenderer implements GLSurfaceView.Renderer {
+        private int mSurfaceWidth = 0;
+        private int mSurfaceHeight = 0;
         private int mRdpTextureId = 0;
+        private final FloatBuffer mVertexBuffer;
+        private final FloatBuffer mTexCoordBuffer;
 
-        public VrRenderer(CardboardViewApi api) {
-            mApi = api;
+        public SimpleStereoRenderer() {
+            float[] vertices = {
+                    -1.0f, -1.0f, 0,
+                    1.0f, -1.0f, 0,
+                    -1.0f, 1.0f, 0,
+                    1.0f, 1.0f, 0
+            };
+            float[] texCoords = {
+                    0,1,
+                    1,1,
+                    0,0,
+                    1,0
+            };
+            ByteBuffer vbb = ByteBuffer.allocateDirect(vertices.length * 4);
+            vbb.order(ByteOrder.nativeOrder());
+            mVertexBuffer = vbb.asFloatBuffer();
+            mVertexBuffer.put(vertices);
+            mVertexBuffer.position(0);
+
+            ByteBuffer tbb = ByteBuffer.allocateDirect(texCoords.length *4);
+            tbb.order(ByteOrder.nativeOrder());
+            mTexCoordBuffer = tbb.asFloatBuffer();
+            mTexCoordBuffer.put(texCoords);
+            mTexCoordBuffer.position(0);
         }
 
         @Override
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-            // ⚠️必须在GL渲染线程初始化Render模块，UI线程调用直接崩溃
-            mApi.initializeRenderThread();
-
-            // 创建2D纹理
+            gl.glClearColor(0,0,0,1);
             int[] tex = new int[1];
-            gl.glGenTextures(1, tex, 0);
+            gl.glGenTextures(1, tex,0);
             mRdpTextureId = tex[0];
-
             gl.glBindTexture(GL10.GL_TEXTURE_2D, mRdpTextureId);
             gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
             gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
@@ -47,71 +92,40 @@ public class VrRdpActivity extends Activity {
 
         @Override
         public void onSurfaceChanged(GL10 gl, int width, int height) {
-            mApi.setScreenParams(width, height);
-            mApi.loadDeviceParams();
+            mSurfaceWidth = width;
+            mSurfaceHeight = height;
+            gl.glViewport(0,0,width,height);
+            gl.glMatrixMode(GL10.GL_PROJECTION);
+            gl.glLoadIdentity();
+            GLU.gluOrtho2D(gl, -1,1,-1,1);
+            gl.glMatrixMode(GL10.GL_MODELVIEW);
         }
 
         @Override
         public void onDrawFrame(GL10 gl) {
+            gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
             Bitmap frame = FrameBus.INSTANCE.getLatestFrame();
-            if (frame != null) {
-                gl.glBindTexture(GL10.GL_TEXTURE_2D, mRdpTextureId);
-                android.opengl.GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, GL10.GL_RGBA, frame, 0);
+            if(frame != null){
+                gl.glBindTexture(GL10.GL_TEXTURE_2D,mRdpTextureId);
+                android.opengl.GLUtils.texImage2D(GL10.GL_TEXTURE_2D,0,GL10.GL_RGBA,frame,0);
             }
+            gl.glEnable(GL10.GL_TEXTURE_2D);
+            gl.glEnableClientState(GL10.GL_VERTEX_ARRAY);
+            gl.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
 
-            EyeTextureDescription leftEye = new EyeTextureDescription();
-            leftEye.texture = mRdpTextureId;
-            leftEye.leftU = 0.0f;
-            leftEye.rightU = 1.0f;
-            leftEye.topV = 0.0f;
-            leftEye.bottomV = 1.0f;
+            // ========== 左眼：绘制屏幕左半部分 ==========
+            gl.glViewport(0,0,  mSurfaceWidth/2, mSurfaceHeight);
+            gl.glVertexPointer(3, GL10.GL_FLOAT,0,mVertexBuffer);
+            gl.glTexCoordPointer(2, GL10.GL_FLOAT,0,mTexCoordBuffer);
+            gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP,0,4);
 
-            EyeTextureDescription rightEye = new EyeTextureDescription();
-            rightEye.texture = mRdpTextureId;
-            rightEye.leftU = 0.0f;
-            rightEye.rightU = 1.0f;
-            rightEye.topV = 0.0f;
-            rightEye.bottomV = 1.0f;
+            // ========== 右眼：绘制屏幕右半部分 ==========
+            gl.glViewport( mSurfaceWidth/2, 0,  mSurfaceWidth/2, mSurfaceHeight);
+            gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP,0,4);
 
-            mApi.renderEyeToDisplay(leftEye, rightEye);
+            gl.glDisableClientState(GL10.GL_VERTEX_ARRAY);
+            gl.glDisableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
+            gl.glDisable(GL10.GL_TEXTURE_2D);
         }
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_vr_rdp);
-        mGlSurfaceView = findViewById(R.id.gl_surface);
-
-        mCardboardApi = new CardboardViewApi(this);
-        VrRenderer renderer = new VrRenderer(mCardboardApi);
-        mGlSurfaceView.setEGLConfigChooser((EGLConfigChooser) null);
-        mGlSurfaceView.setRenderer(renderer);
-        mGlSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        mGlSurfaceView.onResume();
-        mCardboardApi.resumeHeadTracker();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        mCardboardApi.pauseHeadTracker();
-        mGlSurfaceView.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        // close必须投递到GL渲染线程执行，禁止UI线程直接close
-        mGlSurfaceView.queueEvent(() -> {
-            if (mCardboardApi != null) {
-                mCardboardApi.close();
-            }
-        });
     }
 }

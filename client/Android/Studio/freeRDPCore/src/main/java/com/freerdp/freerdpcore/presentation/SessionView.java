@@ -35,6 +35,7 @@ import androidx.annotation.NonNull;
 import com.freerdp.freerdpcore.application.SessionState;
 import com.freerdp.freerdpcore.utils.DoubleGestureDetector;
 import com.freerdp.freerdpcore.utils.GestureDetector;
+import com.freerdp.freerdpcore.application.FrameBus;
 
 import java.util.Stack;
 
