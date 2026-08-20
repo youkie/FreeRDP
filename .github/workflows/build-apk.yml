@@ -31,7 +31,7 @@ jobs:
           export NDK_ABI_FILTERS=arm64-v8a
           ./gradlew clean
           
-          ./gradlew :freeRDPCore:bundleDebugAar :afreerdp:assembleDebug
+          ./gradlew :freeRDPCore:assembleDebug :afreerdp:assembleDebug
           
           ls -R /home/runner/work/FreeRDP/FreeRDP/client/Android/Studio/
 
