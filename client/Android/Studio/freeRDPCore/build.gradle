@@ -20,15 +20,6 @@ android {
         }
     }
 
-    splits {
-        abi {
-            enable rootProject.ext.splitEnabled
-            reset()
-            include rootProject.ext.splitArchs
-            universalApk rootProject.ext.universal
-        }
-    }
-
     buildTypes {
         release {
             minifyEnabled false
@@ -40,7 +31,6 @@ android {
             }
         }
         debug {
-            jniDebuggable true
             externalNativeBuild {
                 cmake {
                     arguments "-DWITH_OPUS=OFF"
@@ -48,7 +38,6 @@ android {
             }
         }
         qa {
-            jniDebuggable false
             externalNativeBuild {
                 cmake {
                     abiFilters "arm64-v8a"
@@ -60,19 +49,23 @@ android {
             }
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
     buildFeatures {
         viewBinding true
     }
+
     externalNativeBuild {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
             version rootProject.ext.cmakeVersion
         }
     }
+
     sourceSets {
         main {
             jniLibs.srcDirs = ['libs', 'src/main/jniLibs']
@@ -80,31 +73,52 @@ android {
     }
 }
 
-
-// CMake编译完成之后，把superbuild生成的所有第三方so复制进jniLibs
+/**
+ * 修复版：copyNativeDeps
+ * 遍历cmake构建输出目录下全部abi，将*.so复制到 src/main/jniLibs/$abi
+ * Gradle正确写法：在task内部用project.copy()方法
+ */
 tasks.register("copyNativeDeps") {
     doLast {
-        def abi = "arm64-v8a"
-        def srcDir = file("build/intermediates/cmake/debug/obj/${abi}")
-        def dstDir = file("src/main/jniLibs/${abi}")
-        dstDir.mkdirs()
-        // 把所有编译出来so全部复制到jniLibs
-        fileTree(srcDir).include("*.so").each { soFile ->
-            copy {
-                from soFile
-                into dstDir
+        def buildTypeDir
+        if (project.hasProperty("debug")) {
+            buildTypeDir = "debug"
+        } else if (project.hasProperty("release")) {
+            buildTypeDir = "release"
+        } else {
+            // 兼容qa构建
+            buildTypeDir = it.name.contains("qa") ? "qa" : "debug"
+        }
+
+        File cmakeObjRoot = file("build/intermediates/cmake/${buildTypeDir}/obj")
+        if (!cmakeObjRoot.exists()) {
+            logger.lifecycle("cmake obj dir not exist, skip copy: ${cmakeObjRoot.absolutePath}")
+            return
+        }
+
+        cmakeObjRoot.listFiles().each { abiDir ->
+            if (!abiDir.isDirectory()) return
+            String abiName = abiDir.name
+            File dstAbiDir = file("src/main/jniLibs/${abiName}")
+            dstAbiDir.mkdirs()
+
+            project.copy {
+                from fileTree(abiDir).include("*.so")
+                into dstAbiDir
             }
+            logger.lifecycle("copy so: ${abiDir.absolutePath} -> ${dstAbiDir.absolutePath}")
         }
     }
 }
 
-// assembleDebug 前执行 copyNativeDeps
+// assemble* 系列任务前执行复制
 tasks.named("assembleDebug") {
     dependsOn("copyNativeDeps")
 }
-
-// assembleRelease 前执行 copyNativeDeps
 tasks.named("assembleRelease") {
+    dependsOn("copyNativeDeps")
+}
+tasks.named("assembleQa") {
     dependsOn("copyNativeDeps")
 }
 
@@ -123,5 +137,3 @@ dependencies {
     implementation 'net.zetetic:sqlcipher-android:4.17.0@aar'
     implementation 'androidx.sqlite:sqlite:2.7.0'
 }
-
-
