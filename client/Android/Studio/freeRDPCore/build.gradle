@@ -112,9 +112,7 @@ tasks.register("copyNativeDeps") { Task task ->
     }
 }
 
-tasks.named("bundleDebugAar") {
-    dependsOn("copyNativeDeps")
-}
+
 tasks.named("assembleRelease") {
     dependsOn("copyNativeDeps")
 }
