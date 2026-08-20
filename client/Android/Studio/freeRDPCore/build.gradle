@@ -59,7 +59,7 @@ android {
         viewBinding true
     }
 
-    // 新增：关闭lint报错，防止GitHub Action被lint打断构建
+    // 关闭lint报错，防止GitHub Action被lint打断构建
     lintOptions {
         abortOnError false
     }
@@ -73,7 +73,6 @@ android {
 
     sourceSets {
         main {
-            // 删掉 'libs'，libs是放aar，不是jniLibs源目录
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
@@ -112,14 +111,10 @@ tasks.register("copyNativeDeps") { Task task ->
     }
 }
 
-tasks.matching { it.name == "assembleRelease" }.configureEach { t ->
-    t.dependsOn("copyNativeDeps")
-    myTask.dependsOn(t)
-}
-
-tasks.matching { it.name == "assembleQa" }.configureEach { t ->
-    t.dependsOn("copyNativeDeps")
-    myTask.dependsOn(t)
+tasks.matching { task ->
+    task.name.startsWith("assemble")
+}.configureEach { assembleTask ->
+    assembleTask.dependsOn("copyNativeDeps")
 }
 
 
