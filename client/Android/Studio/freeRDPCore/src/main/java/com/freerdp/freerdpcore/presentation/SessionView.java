@@ -31,16 +31,19 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 
 import androidx.annotation.NonNull;
+import android.graphics.Bitmap;
 
 import com.freerdp.freerdpcore.application.SessionState;
 import com.freerdp.freerdpcore.utils.DoubleGestureDetector;
 import com.freerdp.freerdpcore.utils.GestureDetector;
 import com.freerdp.freerdpcore.application.FrameBus;
 
+
 import java.util.Stack;
 
 public class SessionView extends View
 {
+	private Bitmap mBitmap;
 	public static final float MAX_SCALE_FACTOR = 3.0f;
 	public static final float MIN_SCALE_FACTOR = 0.75f;
 	private static final String TAG = "SessionView";
