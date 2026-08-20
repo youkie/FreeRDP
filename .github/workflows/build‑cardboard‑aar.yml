@@ -1,0 +1,35 @@
+name: Build‑Cardboard‑1.34.0‑AAR
+on:
+  workflow_dispatch:
+
+jobs:
+  build_aar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cardboard v1.34.0
+        uses: actions/checkout@v4
+        with:
+          repository: googlevr/cardboard
+          ref: v1.34.0
+          path: cardboard_src
+          fetch-depth: 0  # 关键！关闭浅拷贝，获取全部tag信息
+
+      - name: Setup JDK17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: chmod gradlew
+        run: chmod +x gradlew
+        working-directory: ./cardboard_src
+
+      - name: compile sdk release aar
+        run: ./gradlew :sdk:assembleRelease
+        working-directory: ./cardboard_src
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cardboard-sdk-1.34.0
+          path: cardboard_src/sdk/build/outputs/aar/sdk-release.aar
